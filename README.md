@@ -316,3 +316,6 @@ En notebooks/03_predicciones_futuras.ipynb generas titanic_test_future.csv con u
 
 F1 bajo → baja el umbral solo si está justificado y documenta; de lo contrario, reentrena.
 
+
+Badge en el README para mostrar el estado del CI:
+![CI](https://github.com/RosarioValderrama/producto-datos-lab/actions/workflows/producto-datos-lab.yml/badge.svg)
