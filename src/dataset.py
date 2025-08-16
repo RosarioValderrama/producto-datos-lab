@@ -1,6 +1,22 @@
 import pandas as pd
+from sklearn.datasets import fetch_openml
+from typing import Tuple, Optional
 
-def load_data(year: int, month: int) -> pd.DataFrame:
-    """Read the data for a given year and month."""
-    filename = f"https://d37ci6vzurychx.cloudfront.net/trip-data/yellow_tripdata_{year}-{month:02}.parquet"
-    return pd.read_parquet(filename)
+FEATURES = ['pclass', 'sex', 'age', 'sibsp', 'parch', 'fare', 'embarked']
+
+def load_titanic(as_frame: bool = True) -> Tuple[pd.DataFrame, pd.Series]:
+    """
+    Carga el dataset Titanic desde OpenML y devuelve X (features crudas) e y (0/1).
+    """
+    X, y = fetch_openml("titanic", version=1, as_frame=True, return_X_y=True)
+    y = y.astype(int)
+    return X[FEATURES], y
+
+def load_test_csv(path: str) -> Tuple[pd.DataFrame, Optional[pd.Series]]:
+    """
+    Lee un CSV con las columnas crudas del pipeline y, si está, la columna 'survived'.
+    """
+    df = pd.read_csv(path)
+    X = df[FEATURES].copy()
+    y = df['survived'].astype(int) if 'survived' in df.columns else None
+    return X, y

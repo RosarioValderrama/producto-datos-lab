@@ -1,41 +1,73 @@
-# Laboratorio - Implementando un modelo de Machine Learning
+## Laboratorio — ML en Producción con Titanic
+**Este laboratorio implementa un flujo completo de Machine Learning en producción usando el dataset Titanic (OpenML).**
 
-**Este Laboratorio está inspirado en la unidad 1 del curso [Introduction to Machine Learning in Production (DeepLearning.AI)](https://www.coursera.org/learn/introduction-to-machine-learning-in-production/home/welcome). También se apoya en código para generar el modelo disponible en [este repositorio de Shreya Shankar](https://github.com/shreyashankar/debugging-ml-talk) e implementar un flujo de trabajo usando Github Actions de la [Unidad 4 del curso mencionado anteriormente](https://github.com/jesussantana/DeepLearning.AI-Introduction-to-Machine-Learning-in-Production).**
+Incluye:
+- Entrenamiento con Pipeline de scikit-learn (imputación, codificación y modelo).
+- Evaluación con F1-score y elección de umbral.
+- Exportación de artefacto (modelo + umbral + features).
+- API con FastAPI para servir predicciones.
+- Cliente para consumir la API.
+- CI/CD con GitHub Actions y pytest para monitorear el rendimiento (F1) sobre cohortes distintas (simulación de “futuro”).
 
-Para comenzar deben haber bajado todos los archivos a una carpeta y en el terminal de Anaconda llegar a ese directorio.
+*Inspirado en Introduction to ML in Production (DeepLearning.AI) y adaptado al caso Titanic.*
+
+## Estructura del repositorio
 
 ```
-.
-└── producto-datos-lab (este directorio)
-    ├── model (acá irán nuestros modelos)
-    ├── 00_nyc-taxi-model.ipynb
-    ├── 01_server.ipynb
-    ├── 02_client.ipynb
-    └── requirements.txt (dependencias de Python)
+producto-datos-lab/
+├─ .github/workflows/
+│  └─ producto-datos-lab.yml            # Workflow de CI (pytest)
+├─ app/
+│  ├─ data/
+│  │  ├─ titanic_test_base.csv          # Cohorte base (holdout)
+│  │  └─ titanic_test_future.csv        # Cohorte "futuro" (distribución distinta)
+│  └─ test_titanic.py                   # Test unitario (F1 > umbral)
+├─ model/
+│  └─ logistic_titanic_pipeline.pkl     # Artefacto: pipeline + umbral + features
+├─ notebooks/
+│  ├─ 00_supervivencia_titanic.ipynb    # Entrenamiento + métricas + export artefacto
+│  ├─ 01_server_titanic.ipynb           # API FastAPI (endpoint /predict)
+│  ├─ 02_client_titanic.ipynb           # Cliente para consumir la API
+│  └─ 03_predicciones_futuras.ipynb     # Generación de CSVs y monitoreo (drift)
+├─ src/
+│  ├─ dataset.py                        # Carga Titanic (OpenML/CSV)
+│  └─ features.py                       # Utilidades p/ comparar distribuciones (KS-test)
+├─ requirements.txt
+└─ README.md
 ```
- 
- 
-## Pasos previos usando Conda
- 
+
+## Requisitos
+**Python 3.11**
+- pip 
+- Git + cuenta de GitHub (para CI/CD)
 ### Prerequisito: Tener [conda](https://docs.conda.io/en/latest/) instalado en tu computador.
- 
 Vamos a usar Conda para construir un entorno virtual nuevo.
+
  
 ### 1. Creando el entorno virtual (Virtual Environment)
- 
-Asumiremos que tenemos instalado conda. El primer paso es crear un nuevo enviroment para desarrollar. Para crear uno usando Python 3.8 debemos ejecutar el siguiente comando:
- 
+
+1) Crear y activar entorno
 ```bash
-conda create --name producto-datos-lab python=3.9
-```
- 
-Luego debemos activarlo usando el comando:
- 
-```bash
+conda create -n producto-datos-lab python=3.11 -y
 conda activate producto-datos-lab
 ```
- 
-Todo el trabajo que realicemos con este código será en este entorno. Así que al trabajarcon estos archivos siempre tiene que estar activo el `producto-datos-lab`.
+
+2) Instalar dependencias
+```bash
+pip install -r requirements.txt
+```
+
+3) Registrar kernel de Jupyter
+```bash
+python -m ipykernel install --user --name producto-datos-lab
+```
+
+4) Abrir Jupyter Lab
+```bash
+jupyter lab
+```
+
+**Todo el trabajo que realicemos con este código será en este entorno. Así que al trabajar con estos archivos siempre tiene que estar activo el `producto-datos-lab`.**
  
 ### 2. Instalando las dependencias usando PIP 
  
@@ -64,337 +96,223 @@ jupyter lab
 
 ### 4. Generando modelo de ML
 
-El notebook que genera el modelo se puede ejecutar en su totalidad desde [Google Colab](https://colab.research.google.com/drive/1CajYNrge3sAdV7Tc6YDvbB6fVqIP2qsJ?usp=sharing).
+**00 — Entrenamiento del modelo (Pipeline)**
+*Notebook: notebooks/00_supervivencia_titanic.ipynb*
 
-
-## Pasos alternativos usando uv
-
-### Prerequisito: Tener [uv](https://docs.astral.sh/uv/) instalado en tu computador.
-
-`uv` es una herramienta moderna y rápida para gestionar entornos virtuales y dependencias de Python. Como alternativa a conda, puedes usar `uv` que ofrece un rendimiento significativamente mejor.
-
-### 1. Instalando uv
-
-Si no tienes `uv` instalado, puedes instalarlo con:
-
-**En Windows (PowerShell):**
+- Cargar dataset Titanic (OpenML).
+- Hacer train/test split (estratificado).
+- Definir Pipeline:
+    - SimpleImputer (num=median, cat=most_frequent)
+    - StandardScaler (num)
+    - OneHotEncoder (cat, handle_unknown='ignore')
+    - LogisticRegression(max_iter=1000)
+    - Métricas: Accuracy, Precision, Recall, F1, ROC-AUC (umbral 0.5).
+    -Búsqueda de umbral que maximiza F1.
+    - Exportar artefacto a model/logistic_titanic_pipeline.pkl con el siguiente contenido:
 ```bash
-powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+{
+  "model": <Pipeline>,
+  "threshold": <float>,
+  "features": ["pclass","sex","age","sibsp","parch","fare","embarked"]
+}
 ```
+**01 — Servidor (API FastAPI)**
+*Notebook: notebooks/01_server_titanic.ipynb*
+- Carga model/logistic_titanic_pipeline.pkl.
 
-**En Windows (usando pip):**
+Endpoints:
+GET / → información y umbral usado.
+GET /healthz → healthcheck.
+POST /predict → predicción.
+
+Schema de entrada (/predict):
 ```bash
-pip install uv
+{
+  "pclass": 1,
+  "sex": "female",
+  "age": 22,
+  "sibsp": 0,
+  "parch": 1,
+  "fare": 80.0,
+  "embarked": "C"
+}
 ```
+*Parámetro opcional ?confidence=0.55 para forzar umbral. Si no se envía, la API usa el umbral del artefacto.*
 
-**En macOS/Linux:**
+**02 — Cliente**
+*Notebook: notebooks/02_client_titanic.ipynb*
+
+- Configura BASE_URL = "http://127.0.0.1:8000".
+- Envía JSON al endpoint /predict (ejemplos: Helene / Giles).
+
+Incluye función batch que devuelve un DataFrame con prob_survive, pred_class, pred_label, threshold_used.
+
+**03 — “Predicciones futuras” / Monitoreo**
+*Notebook: notebooks/03_predicciones_futuras.ipynb*
+
+Genera CSVs en app/data/:
+- titanic_test_base.csv (holdout normal).
+- titanic_test_future.csv (cohorte distinta, p. ej. solo 3ª clase).
+
+*Usa src/features.py para comparar distribuciones (KS-test) entre cohortes y documentar drift.*
+
+**Tests (pytest)**
+*Archivo: app/test_titanic.py*
+
+- Carga el artefacto y el CSV de test.
+- Calcula probabilidades, aplica el umbral y asserta F1 > 0.70.
+
+Ejecutar localmente:
 ```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
+cd app
+pytest -q
 ```
-
-### 2. Creando el entorno virtual con uv
-
-Navega al directorio `producto-datos-lab` y crea un entorno virtual:
-
-```bash
-uv venv
-```
-
-### 3. Activando el entorno virtual
-
-**En Windows:**
-```bash
-producto-datos-lab\Scripts\activate
-```
-
-**En macOS/Linux:**
-```bash
-source producto-datos-lab/bin/activate
-```
-
-### 4. Instalando las dependencias con uv
-
-Con el entorno activado, instala todas las dependencias directamente desde `requirements.txt`:
-
-```bash
-uv pip install -r requirements.txt
-```
-
-Este comando es significativamente más rápido que pip tradicional y maneja mejor la resolución de dependencias.
-
-### 5. Enlazando el kernel de Jupyter
-
-Instala el kernel para Jupyter:
-
-```bash
-python -m ipykernel install --user --name producto-datos-lab
-```
-
-### 6. Iniciando Jupyter Lab
-
-```bash
-jupyter lab
-```
+*Para “futuro”, cambia el CSV del test a titanic_test_future.csv y vuelve a ejecutar.*
 
 
-## Agregando pipelines de CI/CD usando GitHub Actions
+## 5. CI/CD con GitHub Actions
+En este laboratorio usamos GitHub Actions para automatizar dos cosas clave:
+- Pruebas automáticas cada vez que cambias código (o el modelo) — medimos F1 y fallamos el build si baja de un umbral.
+- Monitoreo simple de desempeño sobre una cohorte “futura” para detectar cambios de distribución (drift).
 
-En este laboratorio también usaremos [GitHub Actions](https://github.com/features/actions) para automatizar flujos de trabajo de Machine Learning. Además haremos un test unitario simple usando [pytest](https://docs.pytest.org/en/6.2.x/) para evaluar cambios en el código antes de publicar a producción.
+**¿Qué es GitHub Actions?**
+Es la plataforma de CI/CD integrada en GitHub que ejecuta workflows (archivos YAML) cuando ocurren eventos (push, PR, cron, etc.). En nuestro caso, el workflow:
+- Instala dependencias.
+- Carga tu artefacto (model/logistic_titanic_pipeline.pkl).
+- Ejecuta pytest con un test que calcula F1 sobre un CSV de test.
 
-Para esta parte debemos hacer un [fork](https://docs.github.com/en/get-started/quickstart/fork-a-repo) de este repositorio para que podamos correr las GH actions en nuestra propia copia del repositorio.
-
-
-
-### ¿Qué es GH Actions?
-
-Es una herramienta sensacional que permite definir flujos de trabajo automáticos para eventos específicos dentro de un repositorio de GitHub. 
-
-Vamos a preparar una acción que corra test unitarios definidos en el código cada vez que mandemos cambios al repositorio remoto.
-
-
-### Fork el repositorio público
-
-Hacer fork a un repositorio es simplemente crear una versión propia de este. Se usa bastante en el desarrollo de software Open Source para organizar una forma de trabajar colaborativamente. En vez de usar el mismo repositorio público (en el que probablemente no se tenga acceso de escritura) se puede trabajar en el fork y mandar Pull Requests desde ahí. Para hacer un fork de este repo sólo se debe clickear en el botón `Fork` en la esquina superior derecha:
-
-![fork-repo](assets/fork-repo.PNG)
-
-Una vez que el proceso de fork haya terminado, deberíamos tener una copia del repositorio pero registrada bajo nuestro propio nombre de usuario:
-
-![your-fork](assets/your-fork.PNG)
-
-Ahora necesitamos clonarlo a nuestra máquina local. Se puede hacer mediante [GitHub Desktop](https://desktop.github.com/) o usando este comando (ojo que hay que reemplazar el username por el propio):
+**Fork y activación**
+Haz fork de este repo en tu cuenta de GitHub.
+En la pestaña Actions del fork, pulsa Enable workflows.
+Clona tu fork localmente:
 
 ```bash
-git clone https://github.com/your-username/producto-datos-lab.git
+git clone https://github.com/<tu-usuario>/producto-datos-lab.git
+cd producto-datos-lab
 ```
 
-Ahora hay que habilitar las Actions en el fork. Se puede hacer haciendo click en el botón Actions:
+**Test unitario (pytest) para Titanic**
+*Archivo: app/test_titanic.py.*
+Este test carga el artefacto (pipeline + umbral + features), lee un CSV de test y asserta que F1 > 0.70. El dataset se pasa por variable de entorno para poder probar “base” y “futuro” con el mismo test.
 
-![action-button](assets/action-button.PNG)
-
-Y luego haciendo click en el botón verde:
-
-![enable-actions](assets/enable-actions.PNG)
-
-### Navegando en el fork
-
-Ahora revisemos lo que hay en el repositorio.
-
-Notemos que hay un directorio oculto en la raíz del repositorio que se llama `.github`. Dentro hay otro directorio llamado `workflows`, aquí se ponen todos los archivos necesarios para configurar las Actions. Estos archivos deben estar en formato `YAML`. En este caso debemos encontrarnos con uno llamado `producto-datos-lab.yml` que será responsable de configurar la acción que deseamos corra el test unitario. El contenido de este archivo es el siguiente:
-
-```yml
-# Run unit tests for your Python application
-
-name: PD-MDS-Lab
-
-# Controls when the action will run. 
-on:
-  # Triggers the workflow on push request events only when there are changes in the desired path
-  push:
-    paths:
-      - 'app/**'
-
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
-jobs:
-  # This workflow contains a single job called "test"
-  test:
-    # The type of runner that the job will run on
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        # Use bash as the shell
-        shell: bash
-
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
-    steps:
-      -
-        name: Checkout
-        uses: actions/checkout@v2
-      - 
-        name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.8.2'
-      - 
-        name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-      -
-        name: Test with pytest
-        run: |
-          cd app/
-          pytest
-```
-
-Veamos cada parte de este archivo:
-
-```yml
-name: PD-MDS-Lab
-on:
-  push:
-    paths:
-      - 'app/**'
-```
-
-Acá se define un nombre para la Action para poder diferenciarla de otras. Además se específica que la disparará, en este caso será por cualquier **push** que cambie algún archivo dentro del directorio `app/`.
-
-```yml
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash
-```
-
-En la siguiente parte se define que trabajos o tareas (`jobs`) deben ejecutarse cuando se dispare esta Action. En este caso es solo un `job`, que se llama `test` y que se ejecutará en un ambiente con el último release de Ubuntu. Además se puede definir algún comportamiento por defecto para este `job`, como el shell (intérprete de comandos) deseado, en este caso `bash`.
-
-```yml
-    steps:
-      -
-        name: Checkout
-        uses: actions/checkout@v2
-      - 
-        name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.8.2'
-      - 
-        name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-      -
-        name: Test with pytest
-        run: |
-          cd app/
-          pytest
-```
-
-Finalmente hay que definir pasos o etapas (`steps`) para que está Action se complete. Son secuencias de comandos que logren alcanzar la funcionalidad deseada. `steps` tiene varios parámetros asociados como:
-
-- `name`: el nombre del paso.
-
-- `uses`: se puede especificar una `Action` que ya exista como un paso. 
-
-- `run`: en vez de utilizar una Action que ya exista también puede que se desee correr un comando. Dado que acá usamos `bash` dentro de una máquina virtual Linux, estos comandos deben tener la sintaxis adecuada.
-
-- `with`: se usa si es que se necesita especificar parámetros adicionales.
-
-
-Para entender cada paso:
-
-- El primer paso usa la Action `actions/checkout@v2`. Esto suualmente se incluye en todas las Action ya que permite a GitHub tener aceso o hacer check-put del repo.
-
-- Ahora que se hizo un check-out del repo, se debe configurar un ambiente capaz de correr código en Python. Para cumplir esto usamos la Action  `actions/setup-python@v2` especificando la versión de Python que necesitamos.
-
-- Teniendo ya el ambiente Python necesitamos instalar las depencias. Podemos hacerlo haciendo upgrade a `pip` y usarlo para instalar las depencias listadas en el archivo `requirements.txt`.
-
-- Finalmente podemos correr la prueba unitaria usando el comando `pytest`. Notemos que primero debemos hacer un `cd` para entrar al directorio `app`.
-
-Ahora que entendemos de mejor forma lo que hace un GH Action, podemos ponerlas a prueba.
-
-
-### Probando el pipeline CI/CD
-
-Dentro del directorio `app` hay una copia del programa servidor que entrega predicciones sobre los viajes en taxi. El código se encarga de cargar el clasificador en el estado global incluso antes de comenzar el server. Esto es porque queremos hacer test unitarios antes de comenzar siquiera el servicio.
-
-#### Test unitario con pytest
-
-Para realizar el test unitario usaremos la biblioteca `pytest`. Para usarla debemos poner nuestros test en scripts de Python donde el nombre de archivo empiece por el prefijo `test_`, en este caso se llama `test_rfc.py` ya que probaremos el desempeño del clasificador Random Forest. 
-
-Miremos el contenido de este archivo:
-
-```python
+# app/test_titanic.py
+```bash
+import os
+import joblib
 import pandas as pd
-from main import rfc
 from sklearn.metrics import f1_score
 
-def test_accuracy():
+DATA = os.getenv("TEST_DATA_PATH", "app/data/titanic_test_base.csv")
+ARTIFACT = os.getenv("MODEL_PATH", "model/logistic_titanic_pipeline.pkl")
 
-    # Load test data
-    taxi_test = pd.read_csv('./data/yellow_tripdata_2020-03_test.csv')
+def test_f1_over_threshold():
+    bundle = joblib.load(ARTIFACT)
+    pipe = bundle["model"]
+    features = bundle["features"]
+    threshold = float(bundle.get("threshold", 0.5))
 
-    numeric_feat = [
-    "pickup_weekday",
-    "pickup_hour",
-    'work_hours',
-    "pickup_minute",
-    "passenger_count",
-    'trip_distance',
-    'trip_time',
-    'trip_speed'
-    ]
-    categorical_feat = [
-        "PULocationID",
-        "DOLocationID",
-        "RatecodeID",
-    ]
+    df = pd.read_csv(DATA)
+    y = df["survived"].astype(int)
+    X = df[features]
 
-    features = numeric_feat + categorical_feat
-    target_col = "high_tip"
+    proba = pipe.predict_proba(X)[:, 1]
+    yhat = (proba >= threshold).astype(int)
 
-    # Predict test examples
-    preds_test = rfc.predict_proba(taxi_test[features])
-    preds_test_labels = [p[1] for p in preds_test.round()]
-
-    # Compute f1-score of classifier
-    f1 = f1_score(taxi_test[target_col], preds_test_labels)
-
-
-    # f1-score should be over 0.7
-    assert f1 > 0.7
+    f1 = f1_score(y, yhat)
+    assert f1 > 0.70, f"F1={f1:.3f} por debajo del umbral en {DATA}"
 ```
+Cambia el umbral del assertion si lo necesitas.
+Los CSV app/data/titanic_test_base.csv y app/data/titanic_test_future.csv se generan en el notebook 03_predicciones_futuras.ipynb.
 
-Hay solo una prueba unitaria definida en el método `test_accuracy`. Esta función carga los datos de test guardados en el archivo `data/yellow_tripdata_2020-03_test.csv` correspondiente a la muestra de viajes de marzo de 2020. Luego se usan estos datos para calcular el f1-score sobre los datos de prueba. 
+**Workflow de CI (YAML)**
+*Archivo: .github/workflows/producto-datos-lab.yml.*
+Este workflow:
+- Corre en Python 3.11.
+- Cachea las dependencias para acelerar builds.
+- Ejecuta pytest dos veces con una matrix: una para la cohorte “base” y otra para “futuro”.
+- Se dispara en push/pull_request y semanalmente para monitoreo.
 
-Si el f1-score es mayor a 0.7 la prueba se pasa exitosamente. De otra forma, falla.
+```bash
+name: PD-MDS-Lab
 
-### Corriendo la GitHub Action
+on:
+  push:
+    paths:
+      - 'app/**'
+      - 'model/**'
+      - '.github/workflows/**'
+      - 'requirements.txt'
+  pull_request:
+    paths:
+      - 'app/**'
+      - 'model/**'
+      - '.github/workflows/**'
+      - 'requirements.txt'
+  workflow_dispatch:
+  schedule:
+    - cron: '0 9 * * 1'  # Lunes 09:00 UTC
 
-Para correr el test unitario usando el pipeline CI/CD necesitamos hacer cambios en el repositorio remoto, específicamente en el directorio `app/`. Para hacer esto, **agreguemos un comentario dentro del archivo `main.py` y guardemos los cambios**.
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        dataset:
+          - app/data/titanic_test_base.csv
+          - app/data/titanic_test_future.csv
 
-Ahora debemos usar git para hacer pull de los cambios hace la versión remota de nuestro fork.
+    env:
+      TEST_DATA_PATH: ${{ matrix.dataset }}
+      MODEL_PATH: model/logistic_titanic_pipeline.pkl
 
-- Primero se verifica si hubo cambios usando el comando `git status`. Deberíamos ver el archivo `main.py` en la lista.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-- Ahora hay que hacer stage de todos los cambios usando `git add --all`.
-- Crear un commit con el comando `git commit -m "Testing the CI/CD pipeline"`. 
-- Finalmente hacer push de los cambios usando `git push origin main`.
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-Con este push el pipeline CI/CD debe haber sido disparado. Para verlo en acción debemos visitar el repo fork usando un navegador y hacer click en el botón  `Actions`.
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            pip-${{ runner.os }}-
 
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-Ahora podemos ver todo lo que ocurre mientras corre el flujo de trabajo que configuramos. Si luego de unos segundos volvemos a hacer click en el botón `Actions` podemos ver la lista de run acompañado con un íncono verde que muestra que todos los test fueron superados.
-
-
-¡Acabamos de ejecutar nuetro primer flujo de trabajo de CI/CD!
-
-### Corriendo el pipeline otra vez
-
-#### Cambiando el código
-
-Supongamos que el equipo de Data Science solicita estar siempre monitoreando el desempeño del clasificador usando datos de los días recientes. Simulemos ese comportamiento cambiando el archivo de los datos de test en el directorio `data/` modificando el script `test_rfc.py`. Hagamos el siguiente cambio para probar con datos de mayo de 2020:
-
-```python
-# Load test data
-    taxi_test = pd.read_csv('./data/yellow_tripdata_2020-03_test.csv')
+      - name: Pytest (F1 debe superar el umbral)
+        run: |
+          cd app
+          pytest -q
 ```
+*Si quieres que “futuro” no falle el build (sólo alerte), puedes separar en dos jobs y usar continue-on-error: true en el job futuro.*
 
-Y lo modificamos a esto:
+**Empujar cambios y ver resultados**
+Haz un cambio dentro de app/ o model/ (por ejemplo, comenta una línea del test).
 
-```python
-# Load test data
-    taxi_test = pd.read_csv('./data/yellow_tripdata_2020-05_test.csv')
-```
+git add --all && git commit -m "Test CI Titanic" && git push.
 
-Una vez que guardamos los cambios, usamos git para hacer push con los mismos comandos de antes:
+Abre Actions en tu repo y revisa el run: verás dos ejecuciones de pytest (base/futuro).
 
-- `git add --all`
-- `git commit -m "Adding new test data"`
-- `git push origin main`
+**Simular drift y caída de F1**
 
-¿Qué es lo que ocurre? ¿Cómo podríamos solucionarlo?
+En notebooks/03_predicciones_futuras.ipynb generas titanic_test_future.csv con una distribución distinta (p. ej., solo 3ª clase). Si el F1 cae bajo el umbral, el job correspondiente fallará. Esto te permite:
+- Documentar el cambio (usa src/features.py para KS-test).
+
+- Ajustar umbral o reentrenar y volver a exportar el artefacto.
+
+**Consejos y debugging**
+
+“No module named …” en CI → confirma requirements.txt.
+
+“File not found model/*.pkl” → exporta el modelo en el notebook 00 y haz commit del archivo en model/.
+
+F1 bajo → baja el umbral solo si está justificado y documenta; de lo contrario, reentrena.
 
