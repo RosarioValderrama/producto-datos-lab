@@ -1,173 +1,165 @@
-## Laboratorio — ML en Producción con Titanic
-**Este laboratorio implementa un flujo completo de Machine Learning en producción usando el dataset Titanic (OpenML).**
+## Laboratorio — ML en Producción / API – Supervivencia Titanic
+Este laboratorio implementa un clasificador binario de supervivencia usando **scikit-learn** y **FastAPI**, con pipeline de preprocesamiento y métricas **F1** en CI (GitHub Actions).
 
-Incluye:
-- Entrenamiento con Pipeline de scikit-learn (imputación, codificación y modelo).
-- Evaluación con F1-score y elección de umbral.
-- Exportación de artefacto (modelo + umbral + features).
-- API con FastAPI para servir predicciones.
-- Cliente para consumir la API.
-- CI/CD con GitHub Actions y pytest para monitorear el rendimiento (F1) sobre cohortes distintas (simulación de “futuro”).
 
-*Inspirado en Introduction to ML in Production (DeepLearning.AI) y adaptado al caso Titanic.*
 
-## Estructura del repositorio
+## 1. Estructura del repositorio
 
-```
 producto-datos-lab/
-├─ .github/workflows/
-│  └─ producto-datos-lab.yml            # Workflow de CI (pytest)
-├─ app/
-│  ├─ data/
-│  │  ├─ titanic_test_base.csv          # Cohorte base (holdout)
-│  │  └─ titanic_test_future.csv        # Cohorte "futuro" (distribución distinta)
-│  └─ test_titanic.py                   # Test unitario (F1 > umbral)
-├─ model/
-│  └─ logistic_titanic_pipeline.pkl     # Artefacto: pipeline + umbral + features
-├─ notebooks/
-│  ├─ 00_supervivencia_titanic.ipynb    # Entrenamiento + métricas + export artefacto
-│  ├─ 01_server_titanic.ipynb           # API FastAPI (endpoint /predict)
-│  ├─ 02_client_titanic.ipynb           # Cliente para consumir la API
-│  └─ 03_predicciones_futuras.ipynb     # Generación de CSVs y monitoreo (drift)
-├─ src/
-│  ├─ dataset.py                        # Carga Titanic (OpenML/CSV)
-│  └─ features.py                       # Utilidades p/ comparar distribuciones (KS-test)
-├─ requirements.txt
-└─ README.md
+├── .github/
+│   └── workflows/
+│       └── producto-datos-lab.yml        # Workflow de GitHub Actions: instala deps y ejecuta pytest 
+├── app/
+│   ├── data/
+│   │   ├── titanic_test_base.csv         # Muestra base para validar el modelo (CI: “caso estable”)
+│   │   └── titanic_test_future.csv       # Muestra “futura” para simular drift (CI: puede bajar el F1)
+│   ├── test/
+│   │   ├── test_titanic.py               # Test de F1 mínimo usando el set base (debe pasar)
+│   │   └── test_titanic_future.py        # Test sobre set futuro (puede fallar si hay drift)
+│   └── main.py                           # API FastAPI: carga el artefacto, expone /healthz y /predict
+├── docs/
+│   └── pruebas_estadisticas.md           
+├── model/
+│   ├── logistic_titanic_pipeline.pkl     # Artefacto principal
+│   └── logistic_titanic_meta.pkl         # Artefacto alternativo
+├── notebooks/
+│   ├── 00_supervivencia_titanic.ipynb    # Entrenamiento- preprocesamiento- métricas- artefacto
+│   ├── 01_server_titanic.ipynb           # Versión notebook del servidor (pruebas locales con /docs)
+│   ├── 02_client_titanic.ipynb           # llamar a la API (requests/cURL) con ejemplos de JSON
+│   ├── 03_predicciones_futuras.ipynb     # Simulación de predicciones futuras / drift
+│   └── 04_generar_datos_test_CI.ipynb    # Genera y guarda los CSV de app/data 
+├── requirements.txt                      # Dependencias 
+└── README.md                             # Guía del proyecto
+
+
+
+## 2. Requisitos e instalación
+Recomendado Python 3.11.
+
+```bash
+# crear y activar entorno (ejemplo con venv)
+python -m venv .venv
+# Windows
+.venv\Scripts\activate
+# macOS/Linux
+source .venv/bin/activate
+
+# instalar dependencias
+pip install -r requirements.txt
 ```
 
-## Requisitos
-**Python 3.11**
-- pip 
-- Git + cuenta de GitHub (para CI/CD)
-### Prerequisito: Tener [conda](https://docs.conda.io/en/latest/) instalado en tu computador.
-Vamos a usar Conda para construir un entorno virtual nuevo.
+**Prerequisito:** Tener [conda](https://docs.conda.io/en/latest/) instalado en tu computador.
+Usaremos Conda para aislar dependencias en un entorno virtual.
 
- 
-### 1. Creando el entorno virtual (Virtual Environment)
+ **Crear y activar el entorno virtual (Virtual Environment)**
 
-1) Crear y activar entorno
 ```bash
 conda create -n producto-datos-lab python=3.11 -y
 conda activate producto-datos-lab
 ```
 
-2) Instalar dependencias
+ **Instalar dependencias**
 ```bash
 pip install -r requirements.txt
 ```
 
-3) Registrar kernel de Jupyter
+ **Registrar kernel de Jupyter**
 ```bash
 python -m ipykernel install --user --name producto-datos-lab
 ```
 
-4) Abrir Jupyter Lab
+ **Iniciar Jupyter Lab**
 ```bash
 jupyter lab
 ```
 
 **Todo el trabajo que realicemos con este código será en este entorno. Así que al trabajar con estos archivos siempre tiene que estar activo el `producto-datos-lab`.**
- 
-### 2. Instalando las dependencias usando PIP 
- 
-Antes de seguir, verifica que en el terminal de Anaconda estés dentro del directorio `producto-datos-lab`, el cual incluye el archivo `requirements.txt`. Este archivo enlista todas las dependencias necesarias y podemos usarlo para instalarlas todas:
- 
-```bash
-pip install -r requirements.txt
-```
- 
-Este comando puede demorar un rato dependiendo de la velocidad del computador y la de la conexión a Internet. Una vez que termine ya está listo todo para comenzar una sesión de Jupyter Lab o Notebook.
 
-Luego debemos enlazar el kernel de jupyter lab a nuestro nuevo enviroment:
 
-```bash
-python -m ipykernel install --user --name producto-datos-lab
-```
 
- 
-### 3. Iniciando Jupyter Lab
- 
-Jupyter lab debería haber quedado instalado en el paso anterior, así que basta con escribir:
+### 2. Entrenamiento y archivo de modelo (artefacto)
+> En esta guía usamos “artefacto” como sinónimo de archivo de modelo serializado.  
+> Es el `.pkl` que guarda el Pipeline entrenado (preprocesamiento + clasificador) y sus metadatos(features esperadas y umbral).
 
-```bash
-jupyter lab
-```
+Salidas esperadas tras entrenar:
+model/
+├─ logistic_titanic_pipeline.pkl # artefacto principal: dict con {"model", "threshold", "features"}
+└─ logistic_titanic_meta.pkl # metadatos por separado; se puede omitir
 
-### 4. Generando modelo de ML
+---
+**`notebooks/00_supervivencia_titanic.ipynb` — Entrenar y exportar el modelo**
+- Prepara el dataset del Titanic, separa train/test y construye un Pipeline de scikit-learn con:
+  - imputación de nulos (num/cat),
+  - codificación One-Hot para categóricas,
+  - estandarización de numéricas,
+  - Regresión Logística como clasificador.
+- Calcula métricas (F1-score) y busca umbral por F1.
+- Exporta el artefacto en `model/logistic_titanic_pipeline.pkl` como un diccionario con:
+  - `model`: el Pipeline entrenado (tiene `.predict_proba`)
+  - `threshold`: umbral recomendado (float)
+  - `features`: columnas de entrada esperadas (en orden)
 
-**00 — Entrenamiento del modelo (Pipeline)**
-*Notebook: notebooks/00_supervivencia_titanic.ipynb*
+> Tras ejecutar todo el notebook, verifica que existe `model/logistic_titanic_pipeline.pkl`.
 
-- Cargar dataset Titanic (OpenML).
-- Hacer train/test split (estratificado).
-- Definir Pipeline:
-    - SimpleImputer (num=median, cat=most_frequent)
-    - StandardScaler (num)
-    - OneHotEncoder (cat, handle_unknown='ignore')
-    - LogisticRegression(max_iter=1000)
-    - Métricas: Accuracy, Precision, Recall, F1, ROC-AUC (umbral 0.5).
-    -Búsqueda de umbral que maximiza F1.
-    - Exportar artefacto a model/logistic_titanic_pipeline.pkl con el siguiente contenido:
-```bash
-{
-  "model": <Pipeline>,
-  "threshold": <float>,
-  "features": ["pclass","sex","age","sibsp","parch","fare","embarked"]
-}
-```
-**01 — Servidor (API FastAPI)**
-*Notebook: notebooks/01_server_titanic.ipynb*
-- Carga model/logistic_titanic_pipeline.pkl.
+---
+**`notebooks/01_server_titanic.ipynb` — Prototipo de servidor (FastAPI)**
+- Demuestra cómo cargar el artefacto y exponer:
+  - `GET /` (home), `GET /healthz` (health check),
+  - `POST /predict` (recibe el JSON del pasajero y devuelve probabilidad + etiqueta).
+- Valida entradas con Pydantic (rangos y dominios).
+- Este notebook es la base del archivo de aplicación que se usa en despliegue:
+  - el código “de verdad” que levanta el servidor vive en `app/main.py`,
+  - para correr local/Render se usa:  
+    `uvicorn app.main:app --host 0.0.0.0 --port 8000`
 
-Endpoints:
-GET / → información y umbral usado.
-GET /healthz → healthcheck.
-POST /predict → predicción.
+---
+**`notebooks/04_generar_datos_test_CI.ipynb` — Datasets de test para CI**
+- Genera y guarda dos CSV dentro de `app/data/`:
+  - `titanic_test_base.csv` → conjunto de prueba “estable” (similar al split original).
+  - `titanic_test_future.csv` → conjunto “futuro” que simula drift (por ejemplo sesgo hacia 3ª clase).
+- Estos archivos son consumidos por los tests de `pytest` en GitHub Actions.
 
-Schema de entrada (/predict):
-```bash
-{
-  "pclass": 1,
-  "sex": "female",
-  "age": 22,
-  "sibsp": 0,
-  "parch": 1,
-  "fare": 80.0,
-  "embarked": "C"
-}
-```
-*Parámetro opcional ?confidence=0.55 para forzar umbral. Si no se envía, la API usa el umbral del artefacto.*
+app/data/
+├─ titanic_test_base.csv
+└─ titanic_test_future.csv
 
-**02 — Cliente**
-*Notebook: notebooks/02_client_titanic.ipynb*
+---
+**`notebooks/02_client_titanic.ipynb` — Cliente HTTP de pruebas**
+- Envía múltiples requests a `POST /predict` (local o Render),
+- Muestra payloads y respuestas (cliente externo)
 
-- Configura BASE_URL = "http://127.0.0.1:8000".
-- Envía JSON al endpoint /predict (ejemplos: Helene / Giles).
+---
+**`notebooks/03_predicciones_futuras.ipynb` — Evaluación con datos “futuros”**
+- Evalúa el modelo sobre el set “futuro” y compara métricas (F1 vs. el set base),
+- Justifica el test de drift en CI (el F1 podría bajar en el conjunto futuro).
 
-Incluye función batch que devuelve un DataFrame con prob_survive, pred_class, pred_label, threshold_used.
+---
 
-**03 — “Predicciones futuras” / Monitoreo**
-*Notebook: notebooks/03_predicciones_futuras.ipynb*
 
-Genera CSVs en app/data/:
-- titanic_test_base.csv (holdout normal).
-- titanic_test_future.csv (cohorte distinta, p. ej. solo 3ª clase).
 
-*Usa src/features.py para comparar distribuciones (KS-test) entre cohortes y documentar drift.*
 
-**Tests (pytest)**
-*Archivo: app/test_titanic.py*
 
-- Carga el artefacto y el CSV de test.
-- Calcula probabilidades, aplica el umbral y asserta F1 > 0.70.
 
-Ejecutar localmente:
-```bash
-cd app
-pytest -q
-```
-*Para “futuro”, cambia el CSV del test a titanic_test_future.csv y vuelve a ejecutar.*
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ## 5. CI/CD con GitHub Actions
