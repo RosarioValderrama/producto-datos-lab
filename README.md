@@ -291,7 +291,9 @@ Exponer públicamente la API (`app/main.py`) para que se pueda consumir desde In
 
 API pública: https://producto-datos-lab-1.onrender.com
 
-Docs (Swagger): https://producto-datos-lab-1.onrender.com/docs
+#### Endpoints.
+
+Swagger UI: https://producto-datos-lab-1.onrender.com/docs
 
 Healthcheck: https://producto-datos-lab-1.onrender.com/healthz
 
@@ -299,14 +301,6 @@ Servicio que expone un modelo de ML (pipeline de scikit-learn) para predecir la 
 
 ![alt text](image.png)
 
-#### Endpoints.
-
-Swagger UI: https://producto-datos-lab-1.onrender.com/docs
-
-Healthcheck: https://producto-datos-lab-1.onrender.com/healthz
-
-Predict (POST): https://producto-datos-lab-1.onrender.com/predict
-(opcional ?confidence=0.55)
 
 **Requisitos previos**
 - El archivo de modelo está commiteado en el repo:
