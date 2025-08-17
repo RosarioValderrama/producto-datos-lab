@@ -290,7 +290,9 @@ Badge en el README para mostrar el estado del CI:
 Exponer públicamente la API (`app/main.py`) para que se pueda consumir desde Internet.
 
 API pública: https://producto-datos-lab-1.onrender.com
+
 Docs (Swagger): https://producto-datos-lab-1.onrender.com/docs
+
 Healthcheck: https://producto-datos-lab-1.onrender.com/healthz
 
 Servicio que expone un modelo de ML (pipeline de scikit-learn) para predecir la supervivencia de pasajeros del Titanic. Incluye validaciones con Pydantic, tests con pytest, CI con GitHub Actions y despliegue en Render.
@@ -323,6 +325,8 @@ Predict (POST): https://producto-datos-lab-1.onrender.com/predict
 3. Environment Variables (opcional):
    - `MODEL_PATH = model/logistic_titanic_pipeline.pkl`  
      *(usa la ruta relativa al repo; si cambias la estructura, actualiza aquí)*
+     
+![alt text](image-1.png)
 
 **Health check y verificación**
 - En settings del servicio, usa Health Check Path: `/healthz`.
@@ -341,6 +345,20 @@ Predict (POST): https://producto-datos-lab-1.onrender.com/predict
 
 
 ### 6. Cliente externo (3 pruebas)
+
+Script: scripts/client.py.
+Hace tres peticiones a la API y guarda resultados en docs/client_results.json.
+
+```powershell
+# conda activate producto-datos-lab
+# python -m pip install -r requirements.txt
+$env:BASE_URL="https://producto-datos-lab-1.onrender.com"
+python scripts\client.py
+```
+En consola: estado de /healthz y 3 respuestas de POST /predict.
+En disco: docs/client_results.json con las entradas y salidas usadas.
+
+
 Script: `scripts/client.py` — hace 3 peticiones distintas a la API en Render y guarda evidencia en `docs/client_results.json`.
 
 **Ejecutar:**
