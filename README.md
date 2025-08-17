@@ -1,5 +1,12 @@
 # Laboratorio — ML en Producción / API – Supervivencia Titanic
-Este laboratorio implementa un clasificador binario de supervivencia usando **scikit-learn** y **FastAPI**, con pipeline de preprocesamiento y métricas **F1** en CI (GitHub Actions).
+
+**URL pública de la API:** https://producto-datos-lab-1.onrender.com  
+**Swagger:** https://producto-datos-lab-1.onrender.com/docs  
+**Health:** https://producto-datos-lab-1.onrender.com/healthz  
+
+![CI](https://github.com/RosarioValderrama/producto-datos-lab/actions/workflows/producto-datos-lab.yml/badge.svg)
+
+API en **FastAPI** que expone un clasificador de supervivencia del Titanic (scikit-learn). Incluye pipeline de preprocesamiento, validaciones con **Pydantic**, tests con **pytest** y CI en **GitHub Actions**.
 
 
 
@@ -7,72 +14,51 @@ Este laboratorio implementa un clasificador binario de supervivencia usando **sc
 
 ```bash
 producto-datos-lab/
-├── .github/
-│   └── workflows/
-│       └── producto-datos-lab.yml        # Workflow de GitHub Actions: instala deps y ejecuta pytest 
+├── .github/workflows/producto-datos-lab.yml        # CI: instala deps y ejecuta pytest
 ├── app/
-│   ├── data/
-│   │   ├── titanic_test_base.csv         # Muestra base para validar el modelo (CI: “caso estable”)
-│   │   └── titanic_test_future.csv       # Muestra “futura” para simular drift (CI: puede bajar el F1)
-│   ├── test/
-│   │   ├── test_titanic.py               # Test de F1 mínimo usando el set base (debe pasar)
-│   │   └── test_titanic_future.py        # Test sobre set futuro (puede fallar si hay drift)
-│   └── main.py                           # API FastAPI: carga el artefacto, expone /healthz y /predict
+│ ├── data/
+│ │ ├── titanic_test_base.csv                       # set base (caso estable)
+│ │ └── titanic_test_future.csv                     # set "futuro" (simula drift)
+│ ├── tests/
+│ │ ├── test_titanic.py                             # debe pasar (umbral F1)
+│ │ └── test_titanic_future.py                      # monitoreo de drift (puede fallar)
+│ └── main.py                                       # FastAPI: /healthz, /predict
 ├── docs/
-│   └── pruebas_estadisticas.md           
+│ ├── payloads.md                                   # ejemplos listos para copiar
+│ └── pruebas_estadisticas.md
 ├── model/
-│   └── logistic_titanic_pipeline.pkl     # Artefacto principal
-│   
+│ └── logistic_titanic_pipeline.pkl                 # artefacto del modelo
 ├── notebooks/
-│   ├── 00_supervivencia_titanic.ipynb    # Entrenamiento- preprocesamiento- métricas- artefacto
-│   ├── 01_server_titanic.ipynb           # Versión notebook del servidor (pruebas locales con /docs)
-│   ├── 02_client_titanic.ipynb           # llamar a la API (requests/cURL) con ejemplos de JSON
-│   └── 03_predicciones_futuras.ipynb     # Genera y guarda los CSV de app/data 
-│
-├── requirements.txt                      # Dependencias 
-└── README.md                             # Guía del proyecto
+│ ├── 00_supervivencia_titanic.ipynb                # entrenamiento + guardado artefacto
+│ ├── 01_server_titanic.ipynb                       # demo del servidor en notebook
+│ ├── 02_client_titanic.ipynb                       # cliente de pruebas (requests/cURL)
+│ └── 03_predicciones_futuras.ipynb                 # genera CSV de app/data/
+├── scripts/
+│ └── client.py                                     # cliente externo (3 peticiones)
+├── requirements.txt
+└── README.md
 ```
 
 
 ## 2. Requisitos e instalación
 Recomendado Python 3.11.
 
-```bash
-# crear y activar entorno (ejemplo con venv)
-python -m venv .venv
-# Windows
-.venv\Scripts\activate
-# macOS/Linux
-source .venv/bin/activate
-
-# instalar dependencias
-pip install -r requirements.txt
-```
-
-**Prerequisito:** Tener [conda](https://docs.conda.io/en/latest/) instalado en tu computador.
-Usaremos Conda para aislar dependencias en un entorno virtual.
-
- **Crear y activar el entorno virtual (Virtual Environment)**
+**Usando conda** Crear y activar el entorno virtual (Virtual Environment)
 
 ```bash
 conda create -n producto-datos-lab python=3.11 -y
 conda activate producto-datos-lab
+python -m pip install -r requirements.txt
+python -m ipykernel install --user --name producto-datos-lab   # (opcional para Jupyter)
 ```
 
- **Instalar dependencias**
-```bash
-pip install -r requirements.txt
-```
-
- **Registrar kernel de Jupyter**
-```bash
-python -m ipykernel install --user --name producto-datos-lab
-```
-
- **Iniciar Jupyter Lab**
+**Iniciar Jupyter Lab**
 ```bash
 jupyter lab
 ```
+
+**Prerequisito:** Tener [conda](https://docs.conda.io/en/latest/) instalado en tu computador.
+Usaremos Conda para aislar dependencias en un entorno virtual.
 
 **Todo el trabajo que realicemos con este código será en este entorno. Así que al trabajar con estos archivos siempre tiene que estar activo el `producto-datos-lab`.**
 
@@ -81,6 +67,11 @@ jupyter lab
 ## 3. Entrenamiento y archivo de modelo (artefacto)
 > En esta guía usamos “artefacto” como sinónimo de archivo de modelo serializado.  
 > Es el `.pkl` que guarda el Pipeline entrenado (preprocesamiento + clasificador) y sus metadatos(features esperadas y umbral).
+
+```arduino
+model/
+└─ logistic_titanic_pipeline.pkl   # artefacto principal
+```
 
 Salidas esperadas tras entrenar:
 ```bash
@@ -135,33 +126,48 @@ app/data/
 
 
 ## 4. Ejecutar la API localmente
+
+*Entrena con notebooks/00_supervivencia_titanic.ipynb.*
+
 - Levanta el servidor FastAPI desde la raíz del repo con Uvicorn.
 - Sirve para probar la API en la máquina antes de desplegarla.
+```bash
+uvicorn app.main:app --reload
+```
 
 Endpoints útiles:
 - `GET /docs` → UI interactiva (Swagger) para probar `POST /predict`.
 - `GET /healthz` → verificación rápida de que la app está viva.
 Variable de entorno opcional: `MODEL_PATH` (por defecto `model/logistic_titanic_pipeline.pkl`).
 
-**Esquema de entrada (qué espera el modelo)**
----
-Desde la **raíz** del repositorio (asegúrate de activar tu entorno primero):
+El artefacto puede ser:
 
+  dict con {"model","threshold","features"} → la API usa ese umbral y features.
+
+  pipeline (estimator) sin meta → la API usa threshold=0.5 y FEATURES por defecto.
+
+*Los CSV para las pruebas de CI se generan con 03_predicciones_futuras.ipynb dentro de app/data/.*
+
+
+**Esquema de entrada (qué espera el modelo)**
 ```bash
 uvicorn app.main:app --reload
 ```
-
 Swagger UI: http://127.0.0.1:8000/docs
+
 Healthcheck: http://127.0.0.1:8000/healthz
 
+**Entrada esperada (POST /predict)**
 La API recibe un JSON con estos campos (validados con Pydantic):
 
+```json
 - `pclass` (1, 2 o 3)  
 - `sex` ("male" o "female")  
 - `age` (0–120, float)  
 - `sibsp`, `parch` (enteros ≥ 0)  
 - `fare` (float ≥ 0)  
 - `embarked` ("C", "Q" o "S")  
+```
 
 **Parámetro opcional de consulta**: `confidence` (0–1) para fijar el umbral de decisión.  
 Si no se entrega, se usa el umbral guardado en el artefacto del modelo.
@@ -245,21 +251,22 @@ Automatiza pruebas del modelo en cada cambio y en una cohorte “futura” para 
 **Qué verifica el workflow**
 *Archivo: .github/workflows/producto-datos-lab.yml.*
 
-- Instala dependencias del repo.
-- Carga el artefacto del modelo (`model/logistic_titanic_pipeline.pkl`).
-- Ejecuta `pytest` sobre dos datasets:
-  - Base: `app/data/titanic_test_base.csv` (debe superar el umbral de F1).
-  - Future: `app/data/titanic_test_future.csv` (simula drift y puede fallar si el desempeño cae).
-- Se ejecuta en:
-  - `push` / `pull_request` (cuando cambian `app/**`, `model/**`, `.github/workflows/**`, `requirements.txt`)
-  - Manual (`workflow_dispatch`)
-  - Programado semanal (cron), si está configurado en el YAML.
+Instala dependencias y ejecuta pytest sobre:
 
-**Requisitos previos**
-- El archivo de modelo existe y está versionado: `model/logistic_titanic_pipeline.pkl`  
-  (lo crea el notebook 00_supervivencia_titanic.ipynb).
-- Están versionados los CSV de test en `app/data/` (los genera 03_predicciones_futuras.ipynb).
-- `requirements.txt` incluye `pytest` (para que el runner pueda ejecutar tests).
+Base: app/data/titanic_test_base.csv (debe superar el umbral F1).
+
+Future: app/data/titanic_test_future.csv (monitoreo de drift; puede fallar).
+
+Se ejecuta en push/pull_request, manual (workflow_dispatch) y (opcional) cron semanal.
+
+**Requisitos**
+
+model/logistic_titanic_pipeline.pkl versionado.
+
+CSV de test en app/data/.
+
+pytest en requirements.txt.
+
 
 **Simular drift y caída de F1**
 En notebooks/03_predicciones_futuras.ipynb generas titanic_test_future.csv con una distribución distinta (solo 3ª clase). Si el F1 cae bajo el umbral, el job correspondiente fallará. Esto te permite:
@@ -342,10 +349,9 @@ Servicio que expone un modelo de ML (pipeline de scikit-learn) para predecir la 
 ![alt text](image-4.png)
 
 
-### 7. Cliente externo (3 pruebas)
+## 7. Cliente externo (3 pruebas)
 
-Script: scripts/client.py.
-Hace tres peticiones a la API y guarda resultados en docs/client_results.json.
+Script: scripts/client.py  - Hace tres peticiones a la API y guarda resultados en docs/client_results.json.
 
 ```powershell
 # conda activate producto-datos-lab
@@ -353,19 +359,21 @@ Hace tres peticiones a la API y guarda resultados en docs/client_results.json.
 $env:BASE_URL="https://producto-datos-lab-1.onrender.com"
 python scripts\client.py
 ```
+Salidas:
+
 En consola: estado de /healthz y 3 respuestas de POST /predict.
-En disco: docs/client_results.json con las entradas y salidas usadas.
 
+Archivo: docs/client_results.json con inputs/outputs.
 
-Script: `scripts/client.py` — hace 3 peticiones distintas a la API en Render y guarda evidencia en `docs/client_results.json`.
-
-**Ejecutar:**
-```bash
-python scripts/client.py
-```
 https://producto-datos-lab-1.onrender.com
 
 
 ## 8. ANEXOS - Ejemplos rápidos de payload
-> Más ejemplos y llamadas listas para copiar → ver **docs/payloads.md**.
+
+Más payloads listos para pegar: **docs/payloads.md.**
+
+Licencia: MIT.
+
+Créditos: Código adaptado de guías del curso y repos de referencia del profesor Alonso Astroza.
+
 
