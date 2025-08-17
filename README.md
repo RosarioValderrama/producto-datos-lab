@@ -1,4 +1,4 @@
-## Laboratorio — ML en Producción / API – Supervivencia Titanic
+# Laboratorio — ML en Producción / API – Supervivencia Titanic
 Este laboratorio implementa un clasificador binario de supervivencia usando **scikit-learn** y **FastAPI**, con pipeline de preprocesamiento y métricas **F1** en CI (GitHub Actions).
 
 
@@ -78,7 +78,7 @@ jupyter lab
 
 
 
-### 2. Entrenamiento y archivo de modelo (artefacto)
+## 3. Entrenamiento y archivo de modelo (artefacto)
 > En esta guía usamos “artefacto” como sinónimo de archivo de modelo serializado.  
 > Es el `.pkl` que guarda el Pipeline entrenado (preprocesamiento + clasificador) y sus metadatos(features esperadas y umbral).
 
@@ -134,7 +134,7 @@ app/data/
 ```
 
 
-## 3. Ejecutar la API localmente
+## 4. Ejecutar la API localmente
 - Levanta el servidor FastAPI desde la raíz del repo con Uvicorn.
 - Sirve para probar la API en la máquina antes de desplegarla.
 
@@ -239,7 +239,7 @@ print(r.json())
 
 
 
-## 4. Workflows (CI/CD) con GitHub Actions
+## 5. Workflows (CI/CD) con GitHub Actions
 Automatiza pruebas del modelo en cada cambio y en una cohorte “futura” para detectar drift (caída de F1).
 
 **Qué verifica el workflow**
@@ -285,7 +285,7 @@ Badge en el README para mostrar el estado del CI:
 
 
 
-## 5. Despliegue en Render (Web Service)
+## 6. Despliegue en Render (Web Service)
 **API de Supervivencia – Titanic (FastAPI)**
 Exponer públicamente la API (`app/main.py`) para que se pueda consumir desde Internet.
 
@@ -342,12 +342,13 @@ Predict (POST): https://producto-datos-lab-1.onrender.com/predict
 
 **Buenas prácticas**
 - Activa **Auto-Deploy** en Render para que cada `push` a `main` redeploye tu API.
+
 - Agrega la **URL pública** en la parte superior del README:
   - `**URL de la API:** https://producto-datos-lab-1.onrender.com/`
 ![alt text](image-4.png)
 
 
-### 6. Cliente externo (3 pruebas)
+### 7. Cliente externo (3 pruebas)
 
 Script: scripts/client.py.
 Hace tres peticiones a la API y guarda resultados en docs/client_results.json.
@@ -371,6 +372,6 @@ python scripts/client.py
 https://producto-datos-lab-1.onrender.com
 
 
-### ANEXOS - Ejemplos rápidos de payload
+## 8. ANEXOS - Ejemplos rápidos de payload
 > Más ejemplos y llamadas listas para copiar → ver **docs/payloads.md**.
 
