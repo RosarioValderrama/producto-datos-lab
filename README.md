@@ -12,7 +12,8 @@ producto-datos-lab/
 ├── app/
 │   ├── data/
 │   │   ├── titanic_test_base.csv         # Muestra base para validar el modelo (CI: “caso estable”)
-│   │   ├── titanic_test_future.csv       # Muestra “futura” para simular drift (CI: puede bajar el F1)
+│   │   └── titanic_test_future.csv       # Muestra “futura” para simular drift (CI: puede bajar el F1)
+│   ├── test/
 │   │   ├── test_titanic.py               # Test de F1 mínimo usando el set base (debe pasar)
 │   │   └── test_titanic_future.py        # Test sobre set futuro (puede fallar si hay drift)
 │   └── main.py                           # API FastAPI: carga el artefacto, expone /healthz y /predict
@@ -229,6 +230,7 @@ print(r.json())
 - Qué hace el CI: en cada `push`/PR (y semanalmente) instala dependencias y ejecuta `pytest` sobre dos conjuntos:
   - Base (`app/data/titanic_test_base.csv`): debe superar el umbral de F1.
   - Future (`app/data/titanic_test_future.csv`): simula drift; puede fallar si el modelo degrada.
+  *“future” se trata como monitoring check (no bloqueante) para detectar drift.*
 - Para qué sirve: automatiza control de calidad y detecta cambios de distribución.
 - Cómo se usa: haces un commit y miras la pestaña Actions en GitHub. Allí ves logs, F1 y si cada job pasó o falló.
 - Si falla: revisa mensajes (faltan dependencias, no está el `.pkl`, F1 bajo). Ajusta umbral solo si está justificado; idealmente reentrena/mejora el modelo.

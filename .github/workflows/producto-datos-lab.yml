@@ -12,10 +12,13 @@ jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        dataset:
-          - app/data/titanic_test_base.csv
-          - app/data/titanic_test_future.csv
+        include:
+          - dataset: app/data/titanic_test_base.csv
+            allow_failure: false
+          - dataset: app/data/titanic_test_future.csv
+            allow_failure: true   # <- el "future" puede fallar
 
     env:
       MODEL_PATH: model/logistic_titanic_pipeline.pkl
@@ -23,17 +26,15 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+      - name: Run pytest
+        run: python -m pytest -q app
+        continue-on-error: ${{ matrix.allow_failure }}  # <- clave
 
-      - name: Run tests
-        run: |
-          python -m pytest -q app
 
