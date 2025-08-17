@@ -325,14 +325,17 @@ Predict (POST): https://producto-datos-lab-1.onrender.com/predict
 3. Environment Variables (opcional):
    - `MODEL_PATH = model/logistic_titanic_pipeline.pkl`  
      *(usa la ruta relativa al repo; si cambias la estructura, actualiza aquí)*
-     
+
 ![alt text](image-1.png)
 
 **Health check y verificación**
 - En settings del servicio, usa Health Check Path: `/healthz`.
 - Tras el deploy:
-  - Abre `https://<tu-servicio>.onrender.com/healthz` → debe responder `{"status":"ok"}`.
-  - Abre `https://<tu-servicio>.onrender.com/docs` → prueba `POST /predict` con un JSON válido.
+  - Abre `https://producto-datos-lab-1.onrender.com/healthz` → debe responder `{"status":"ok"}`.
+  ![alt text](image-2.png)
+
+  - Abre `https://producto-datos-lab-1.onrender.com/docs` → prueba `POST /predict` con un JSON válido.
+![alt text](image-3.png)
 
 > **Tip:** si ves errores tipo `ModuleNotFoundError` o `ImportError`, revisa que el paquete esté en `requirements.txt`.  
 > Si aparece `FileNotFoundError` para el modelo, confirma que `model/logistic_titanic_pipeline.pkl` está en el repo y que `MODEL_PATH` apunta a esa ruta.
@@ -340,8 +343,8 @@ Predict (POST): https://producto-datos-lab-1.onrender.com/predict
 **Buenas prácticas**
 - Activa **Auto-Deploy** en Render para que cada `push` a `main` redeploye tu API.
 - Agrega la **URL pública** en la parte superior del README:
-  - `**URL de la API:** https://<tu-servicio>.onrender.com`
-
+  - `**URL de la API:** https://producto-datos-lab-1.onrender.com/`
+![alt text](image-4.png)
 
 
 ### 6. Cliente externo (3 pruebas)
