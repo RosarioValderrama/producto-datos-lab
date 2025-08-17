@@ -1,0 +1,66 @@
+[
+  {
+    "name": "Caso 1 - mujer 1a clase",
+    "url": "https://producto-datos-lab-1.onrender.com/predict",
+    "sent_json": {
+      "pclass": 1,
+      "sex": "female",
+      "age": 22,
+      "sibsp": 0,
+      "parch": 1,
+      "fare": 80.0,
+      "embarked": "C"
+    },
+    "sent_params": {},
+    "status_code": 200,
+    "response": {
+      "survived": 1,
+      "probability": 0.9603175439200833,
+      "threshold_used": 0.5
+    }
+  },
+  {
+    "name": "Caso 2 - hombre 3a clase (umbral 0.60)",
+    "url": "https://producto-datos-lab-1.onrender.com/predict",
+    "sent_json": {
+      "pclass": 3,
+      "sex": "male",
+      "age": 35,
+      "sibsp": 0,
+      "parch": 0,
+      "fare": 8.05,
+      "embarked": "S"
+    },
+    "sent_params": {
+      "confidence": 0.6
+    },
+    "status_code": 200,
+    "response": {
+      "survived": 0,
+      "probability": 0.08987989397079262,
+      "threshold_used": 0.6
+    }
+  },
+  {
+    "name": "Caso 3 - mujer 2a clase (umbral 0.40)",
+    "url": "https://producto-datos-lab-1.onrender.com/predict",
+    "sent_json": {
+      "pclass": 2,
+      "sex": "female",
+      "age": 28,
+      "sibsp": 1,
+      "parch": 0,
+      "fare": 26.0,
+      "embarked": "Q"
+    },
+    "sent_params": {
+      "confidence": 0.4
+    },
+    "status_code": 200,
+    "response": {
+      "survived": 1,
+      "probability": 0.6821828395542427,
+      "threshold_used": 0.4
+    }
+  }
+]
