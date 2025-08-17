@@ -286,6 +286,17 @@ Badge en el README para mostrar el estado del CI:
 ## 5. Despliegue en Render (Web Service)
 Exponer públicamente la API (`app/main.py`) para que se pueda consumir desde Internet.
 
+https://producto-datos-lab-1.onrender.com
+
+#### Endpoints.
+
+Swagger UI: https://producto-datos-lab-1.onrender.com/docs
+
+Healthcheck: https://producto-datos-lab-1.onrender.com/healthz
+
+Predict (POST): https://producto-datos-lab-1.onrender.com/predict
+(opcional ?confidence=0.55)
+
 **Requisitos previos**
 - El archivo de modelo está commiteado en el repo:
   - `model/logistic_titanic_pipeline.pkl` (dict con `{"model","threshold","features"}`).
