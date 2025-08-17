@@ -12,8 +12,7 @@ producto-datos-lab/
 ├── app/
 │   ├── data/
 │   │   ├── titanic_test_base.csv         # Muestra base para validar el modelo (CI: “caso estable”)
-│   │   └── titanic_test_future.csv       # Muestra “futura” para simular drift (CI: puede bajar el F1)
-│   ├── test/
+│   │   ├── titanic_test_future.csv       # Muestra “futura” para simular drift (CI: puede bajar el F1)
 │   │   ├── test_titanic.py               # Test de F1 mínimo usando el set base (debe pasar)
 │   │   └── test_titanic_future.py        # Test sobre set futuro (puede fallar si hay drift)
 │   └── main.py                           # API FastAPI: carga el artefacto, expone /healthz y /predict
