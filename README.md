@@ -350,9 +350,6 @@ python scripts/client.py
 https://producto-datos-lab-1.onrender.com
 
 
-
-
-
 ### ANEXOS - Ejemplos rápidos de payload
 > Más ejemplos y llamadas listas para copiar → ver **docs/payloads.md**.
 
