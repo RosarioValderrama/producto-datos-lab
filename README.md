@@ -5,6 +5,7 @@ Este laboratorio implementa un clasificador binario de supervivencia usando **sc
 
 ## 1. Estructura del repositorio
 
+```bash
 producto-datos-lab/
 ├── .github/
 │   └── workflows/
@@ -30,7 +31,7 @@ producto-datos-lab/
 │
 ├── requirements.txt                      # Dependencias 
 └── README.md                             # Guía del proyecto
-
+```
 
 
 ## 2. Requisitos e instalación
@@ -82,10 +83,11 @@ jupyter lab
 > Es el `.pkl` que guarda el Pipeline entrenado (preprocesamiento + clasificador) y sus metadatos(features esperadas y umbral).
 
 Salidas esperadas tras entrenar:
+```bash
 model/
 ├─ logistic_titanic_pipeline.pkl # artefacto principal: dict con {"model", "threshold", "features"}
 └─ logistic_titanic_meta.pkl # metadatos por separado; se puede omitir
-
+```
 ---
 **`notebooks/00_supervivencia_titanic.ipynb` — Entrenar y exportar el modelo**
 - Prepara el dataset del Titanic, separa train/test y construye un Pipeline de scikit-learn con:
@@ -125,11 +127,11 @@ model/
   - `titanic_test_base.csv` → conjunto de prueba “estable” (similar al split original).
   - `titanic_test_future.csv` → conjunto “futuro” que simula drift (por ejemplo sesgo hacia 3ª clase).
 - Estos archivos son consumidos por los tests de `pytest` en GitHub Actions.
-
+```bash
 app/data/
 ├─ titanic_test_base.csv
 └─ titanic_test_future.csv
-
+```
 
 
 ## 3. Ejecutar la API localmente
@@ -165,7 +167,7 @@ La API recibe un JSON con estos campos (validados con Pydantic):
 Si no se entrega, se usa el umbral guardado en el artefacto del modelo.
 
 **Cómo hacer peticiones a la API:**
-1. Swagger (recomendado):
+1. Swagger:
 Abre http://127.0.0.1:8000/docs
 En POST /predict → Try it out → edita el JSON → Execute.
 
@@ -284,9 +286,16 @@ Badge en el README para mostrar el estado del CI:
 
 
 ## 5. Despliegue en Render (Web Service)
+**API de Supervivencia – Titanic (FastAPI)**
 Exponer públicamente la API (`app/main.py`) para que se pueda consumir desde Internet.
 
-https://producto-datos-lab-1.onrender.com
+API pública: https://producto-datos-lab-1.onrender.com
+Docs (Swagger): https://producto-datos-lab-1.onrender.com/docs
+Healthcheck: https://producto-datos-lab-1.onrender.com/healthz
+
+Servicio que expone un modelo de ML (pipeline de scikit-learn) para predecir la supervivencia de pasajeros del Titanic. Incluye validaciones con Pydantic, tests con pytest, CI con GitHub Actions y despliegue en Render.
+
+![alt text](image.png)
 
 #### Endpoints.
 
@@ -328,6 +337,18 @@ Predict (POST): https://producto-datos-lab-1.onrender.com/predict
 - Activa **Auto-Deploy** en Render para que cada `push` a `main` redeploye tu API.
 - Agrega la **URL pública** en la parte superior del README:
   - `**URL de la API:** https://<tu-servicio>.onrender.com`
+
+
+
+### 6. Cliente externo (3 pruebas)
+Script: `scripts/client.py` — hace 3 peticiones distintas a la API en Render y guarda evidencia en `docs/client_results.json`.
+
+**Ejecutar:**
+```bash
+python scripts/client.py
+```
+https://producto-datos-lab-1.onrender.com
+
 
 
 
